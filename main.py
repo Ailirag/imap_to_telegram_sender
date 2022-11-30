@@ -1,5 +1,4 @@
 import os
-from secure_json import Settings
 import requests
 import imaplib
 from datetime import datetime
@@ -7,18 +6,21 @@ import time
 import email
 
 
-settings = Settings('Settings.json').data
+bot_token = os.environ.get('TOKEN')
+chat_id = os.environ.get('CHAT_ID')
+mail_str = os.environ.get('MAIL')
+password = os.environ.get('PWD')
 
 
-def send_document(text, path_to_doc, chat_id, TOKEN, remove_after=True):
+def send_document(text, path_to_doc, remove_after=True):
     url = "https://api.telegram.org/bot"
-    url += TOKEN
+    url += bot_token
     method = url + "/sendDocument"
 
     with open(path_to_doc, "rb") as file_doc:
         files = {"document": file_doc}
 
-        r = requests.post(method, data={
+        requests.post(method, data={
             "chat_id": chat_id,
             "caption": text
         }, files=files)
@@ -27,15 +29,10 @@ def send_document(text, path_to_doc, chat_id, TOKEN, remove_after=True):
         os.remove(path_to_doc)
 
 
-def mkdir_image():
-    if not os.path.exists('image'):
-        os.mkdir('image')
-
-
 if __name__ == '__main__':
 
     mail = imaplib.IMAP4_SSL('imap.yandex.ru')
-    mail.login(settings.email.mail, settings.email.password)
+    mail.login(mail_str, password)
 
     while True:
 
@@ -64,7 +61,6 @@ if __name__ == '__main__':
                     for payload in payloads:
                         if payload.get_content_type() == "image/jpeg" or payload.get_content_type() == "image/png":
                             file_name = payload.get_filename()
-                            mkdir_image()
                             file = open(file_name, 'wb')
                             file.write(payload.get_payload(decode=True))
                             file.close()
@@ -72,7 +68,8 @@ if __name__ == '__main__':
                             message += payload.get_payload(decode=True).decode('utf-8')
 
                     if file_name > '':
-                        send_document('Детекция', file_name, settings.telegram.chat_id, settings.telegram.bot_token)
+                        print(f'{datetime.now()}    : Send [{file_name}] file')
+                        send_document('Детекция', file_name)
 
                     mail.store(id, '+FLAGS', '\\Deleted')
                     mail.expunge()
